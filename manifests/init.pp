@@ -32,9 +32,23 @@ class celery::rabbitmq($user="some_user",
   }
 }
 
-class celery::server($requirements="/tmp/celery-requirements.txt",
-                     $requirements_template="celery/requirements.txt",
-                     $initd_template="celery/init.d.sh",
+
+# Install the requiremnets for celery
+class celery::requirements($requirements="/tmp/celery-requirements.txt",
+                           $requirements_template="celery/requirements.txt") {
+  file { $requirements:
+    ensure => "present",
+    content => template($requirements_template),
+  }
+
+  pip::install {"celery":
+    requirements => $requirements,
+    require => [File[$requirements],],
+  }
+}
+
+
+class celery::server($initd_template="celery/init.d.sh",
                      $config_template="celery/celeryconfig.py",
                      $defaults_template="celery/defaults.sh",
                      $broker_user="some_user",
@@ -43,15 +57,7 @@ class celery::server($requirements="/tmp/celery-requirements.txt",
                      $broker_host="localhost",
                      $broker_port="5672") {
 
-  file { $requirements:
-    ensure => "present",
-    content => template($requirements_template),
-  }
 
-  pip::install {"celery":
-    requirements => $requirements,
-    require => [Exec["pip::bootstrapped"], File[$requirements],],
-  }
 
   file { "/etc/default/celeryd":
     ensure => "present",
@@ -94,23 +100,16 @@ class celery::server($requirements="/tmp/celery-requirements.txt",
     ensure => "running",
     require => [File["/var/celery/celeryconfig.py"],
                 File["/etc/init.d/celeryd"],
-                Exec["pip-celery"],
                 File["/var/log/celery"],
-                File["/var/run/celery"],
-                Class["rabbitmq::service"], ],
+                File["/var/run/celery"] ],
   }
 }
 
-class celery::django($requirements="/tmp/celery-django-requirements.txt",
-                     $requirements_template="celery/django-requirements.txt",
-                     $initd_template="celery/init.d.sh",
-                     $config_template="celery/celeryconfig.py",
-                     $defaults_template="celery/defaults.sh",
-                     $broker_user="some_user",
-                     $broker_vhost="some_vhost",
-                     $broker_password="CHANGEME",
-                     $broker_host="localhost",
-                     $broker_port="5672") {
+
+# Install the requierments for django-celery
+class celery::django::requirements(
+    $requirements="/tmp/celery-django-requirements.txt",
+    $requirements_template="celery/django-requirements.txt") {
 
   file { $requirements:
     ensure => "present",
@@ -121,5 +120,16 @@ class celery::django($requirements="/tmp/celery-django-requirements.txt",
     requirements => $requirements,
     require => [Exec["pip::bootstrapped"], File[$requirements],],
   }
+}
+
+
+class celery::django($initd_template="celery/init.d.sh",
+                     $config_template="celery/celeryconfig.py",
+                     $defaults_template="celery/defaults.sh",
+                     $broker_user="some_user",
+                     $broker_vhost="some_vhost",
+                     $broker_password="CHANGEME",
+                     $broker_host="localhost",
+                     $broker_port="5672") {
 
 }
